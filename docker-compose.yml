@@ -1,0 +1,40 @@
+name: tele_bot
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${WEBHOOK__PORT:-8080}:${WEBHOOK__PORT:-8080}"
+    env_file:
+      - .env
+    command: python bot.py
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app  # Монтируем текущую директорию в контейнер
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "${DB__PORT:-5434}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB__USER}
+      POSTGRES_PASSWORD: ${DB__PASSWORD}
+      POSTGRES_DB: ${DB__NAME}
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS__PORT:-6434}:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS__PASSWORD}
+    command: redis-server --requirepass ${REDIS__PASSWORD}
+
+volumes:
+  db_data:
+  redis_data:
