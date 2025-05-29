@@ -1,47 +1,32 @@
 import os
-import asyncpg
 import asyncio
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+from services.database import Database
+from dispatcher import get_dispatcher
 
-# Загрузка конфигурации
-TOKEN = os.getenv("TG__BOT_TOKEN")
-
-# Проверка наличия токена
-if not TOKEN:
-    raise ValueError("TG__BOT_TOKEN не установлен в .env файле!")
-
-# Инициализация бота
-bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
-dp = Dispatcher()
-
-# Обработчик сообщений
-@dp.message()
-async def echo_handler(message: types.Message) -> None:
-    await message.answer("Привет! Проверка связи...")
-
-# Проверка подключения к бд
-async def test_db_connection():
-    print('Произвожу проверку подключения к базе данных: .... .')
+async def main():
+    # Инициализация бота
+    bot = Bot(
+        token=os.getenv("TG__BOT_TOKEN"),
+        default=DefaultBotProperties(parse_mode="HTML")
+    )
+    
+    # Инициализация диспетчера
+    dp = get_dispatcher()
+    
+    # Инициализация бд
+    db = Database()
+    await db.initialize()
+    
+    # Запуск бота
+    print("🤖 Бот запущен! Проверьте Telegram...")
     try:
-        conn = await asyncpg.connect(
-            host=os.getenv("DB__HOST"),
-            port=os.getenv("DB__PORT"),
-            user=os.getenv("DB__USER"),
-            password=os.getenv("DB__PASSWORD"),
-            database=os.getenv("DB__NAME")
-        )
-        version = await conn.fetchval("SELECT version()")
-        print(f"✅ Подключение к PostgreSQL успешно! Версия: {version}")
-        await conn.close()
-    except Exception as e:
-        print(f"❌ Ошибка подключения к PostgreSQL: {e}")
-
-async def main() -> None:
-    await test_db_connection()
-    print("Бот запущен! Проверьте Telegram...")
-    await dp.start_polling(bot)
+        await dp.start_polling(bot)
+    finally:
+        # Гарантированное закрытие соединений
+        await db.close()
+        await bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
