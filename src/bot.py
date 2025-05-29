@@ -38,9 +38,8 @@ async def test_db_connection():
     except Exception as e:
         print(f"❌ Ошибка подключения к PostgreSQL: {e}")
 
-# Измените функцию main()
 async def main() -> None:
-    await test_db_connection()  # <-- тест подключения к БД
+    await test_db_connection()
     print("Бот запущен! Проверьте Telegram...")
     await dp.start_polling(bot)
 

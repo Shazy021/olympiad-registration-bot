@@ -13,13 +13,13 @@ services:
       - db
       - redis
     volumes:
-      - .:/app  # Монтируем текущую директорию в контейнер
+      - ./src:/app
   db:
     image: postgres:15-alpine
     ports:
       - "${DB__PORT:-5434}:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - ./db_data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: ${DB__USER}
       POSTGRES_PASSWORD: ${DB__PASSWORD}
