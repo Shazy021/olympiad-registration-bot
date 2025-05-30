@@ -1,8 +1,10 @@
 from aiogram import Router, F
 from aiogram.types import Message
-from keyboards.keyboards import main_menu_keyboard
+from keyboards.keyboards import main_menu_keyboard, settings_keyboard
+from services.database import Database
 
 router = Router()
+db = Database()
 
 @router.message(F.text == "🏠 Главное меню")
 async def main_menu(message: Message):
@@ -22,5 +24,32 @@ async def help_command(message: Message):
         "• ⚙️ Настройки - Настройки профиля\n"
         "• 🏠 Главное меню - Вернуться в главное меню"
     )
+
+@router.message(F.text == "⚙️ Настройки")
+async def settings_command(message: Message):
+    await message.answer(
+        "⚙️ Настройки профиля:",
+        reply_markup=settings_keyboard()
+    )
+
+@router.message(F.text == "👤 Профиль")
+async def view_profile(message: Message):
+    user = await db.get_user(message.from_user.id)
+    print(user)
+
+    # Получаем название роли и категории
+    role_name = await db.get_role_name(user.get('user_id'))
+    category_name = await db.get_category_name(user.get('user_id'))
+    
+    profile_text = (
+        "👤 Ваш профиль:\n\n"
+        f"▫️ Имя: {user['first_name']}\n"
+        f"▫️ Фамилия: {user['last_name']}\n"
+        f"▫️ Отчество: {user.get('middle_name', 'не указано')}\n"
+        f"▫️ Роль: {role_name}\n"
+        f"▫️ Категория: {category_name}"
+    )
+    
+    await message.answer(profile_text, reply_markup=main_menu_keyboard())
 
 # Добавим обработчики для остальных пунктов меню позже
