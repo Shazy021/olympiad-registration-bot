@@ -6,6 +6,11 @@ from services.database import Database
 from dispatcher import get_dispatcher
 
 async def main():
+    # Инициализация базы данных
+    db = Database()
+    if not await db.initialize():
+        print("❌ Не удалось инициализировать БД! Работа бота будет ограничена.")
+    
     # Инициализация бота
     bot = Bot(
         token=os.getenv("TG__BOT_TOKEN"),
@@ -14,10 +19,6 @@ async def main():
     
     # Инициализация диспетчера
     dp = get_dispatcher()
-    
-    # Инициализация бд
-    db = Database()
-    await db.initialize()
     
     # Запуск бота
     print("🤖 Бот запущен! Проверьте Telegram...")
