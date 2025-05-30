@@ -5,4 +5,5 @@ class RegistrationStates(StatesGroup):
     last_name = State()
     middle_name = State()
     select_role = State()
+    select_category = State()
     confirm_data = State()
