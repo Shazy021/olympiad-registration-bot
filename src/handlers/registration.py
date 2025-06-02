@@ -10,6 +10,9 @@ from keyboards.keyboards import main_menu_keyboard, role_keyboard, confirm_keybo
 router = Router()
 db = Database()
 
+async def delete_lst_msgs(message: Message):
+    await message.bot.delete_message(message.chat.id, message.message_id - 1)
+    await message.bot.delete_message(message.chat.id, message.message_id)
 
 @router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
@@ -19,7 +22,7 @@ async def cmd_start(message: Message, state: FSMContext):
     if user:
         await message.answer(
             f"С возвращением, {user['first_name']}!",
-            reply_markup=main_menu_keyboard()
+            reply_markup=main_menu_keyboard(await db.is_admin_or_moderator(message.from_user.id))
         )
         return
         
@@ -28,20 +31,24 @@ async def cmd_start(message: Message, state: FSMContext):
 
 @router.message(RegistrationStates.first_name, F.text)
 async def process_first_name(message: Message, state: FSMContext):
+    await delete_lst_msgs(message)
+
     await state.update_data(first_name=message.text)
     await message.answer("Отлично! Теперь введите вашу фамилию:")
     await state.set_state(RegistrationStates.last_name)
-    await message.delete()
 
 @router.message(RegistrationStates.last_name, F.text)
 async def process_last_name(message: Message, state: FSMContext):
+    await delete_lst_msgs(message)
+
     await state.update_data(last_name=message.text)
     await message.answer("Введите ваше отчество (если есть):")
     await state.set_state(RegistrationStates.middle_name)
-    await message.delete()
 
 @router.message(RegistrationStates.middle_name, F.text)
 async def process_middle_name(message: Message, state: FSMContext):
+    await delete_lst_msgs(message)
+
     data = await state.get_data()
     data['middle_name'] = message.text if message.text != "-" else None
     await state.set_data(data)
@@ -145,7 +152,7 @@ async def confirm_registration(callback: CallbackQuery, state: FSMContext):
         
         await callback.message.answer(
             "Выберите действие:",
-            reply_markup=main_menu_keyboard()
+            reply_markup=main_menu_keyboard(await db.is_admin_or_moderator(callback.from_user.id))
         )
         
     except Exception as e:
