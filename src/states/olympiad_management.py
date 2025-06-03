@@ -16,3 +16,12 @@ class ApplicationStates(StatesGroup):
 class ApplicationModerationStates(StatesGroup):
     view_application = State()
     change_status = State()
+
+class EditOlympiadStates(StatesGroup):
+    select_field = State()
+    edit_title = State()
+    edit_description = State()
+    edit_organizer = State()
+    edit_start_date = State()
+    edit_end_date = State()
+    edit_subject = State()
