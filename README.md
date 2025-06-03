@@ -23,5 +23,5 @@ docker-compose up -d --build
 
 3. Проверьте логи:
 ``` bash
-docker-compose up -d --build
+docker-compose logs -f bot
 ```
