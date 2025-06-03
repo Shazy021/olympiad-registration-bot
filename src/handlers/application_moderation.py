@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from services.database import Database
 from keyboards.keyboards import (
     application_list_keyboard,
-    application_action_keyboard
+    moder_application_action_keyboard
 )
 
 router = Router()
@@ -51,10 +51,10 @@ async def reject_application(callback: CallbackQuery):
     
     await callback.answer()
 
-@router.callback_query(F.data.startswith("app_"))
+@router.callback_query(F.data.startswith("app_id_"))
 async def show_application_details(callback: CallbackQuery):
     await callback.message.bot.delete_message(callback.message.chat.id, callback.message.message_id)
-    application_id = int(callback.data.split("_")[1])
+    application_id = int(callback.data.split("_")[2])
     application = await db.get_application_details(application_id)
     
     if not application:
@@ -72,12 +72,12 @@ async def show_application_details(callback: CallbackQuery):
     
     await callback.message.answer(
         application_info,
-        reply_markup=application_action_keyboard(application_id)
+        reply_markup=moder_application_action_keyboard(application_id)
     )
     await callback.answer()
 
 
-@router.callback_query(F.data == 'back_to_applications')
+@router.callback_query(F.data == 'back_to_applications_moderation')
 async def back_application(callback: Message):
     await callback.message.bot.delete_message(callback.message.chat.id, callback.message.message_id)
     applications = await db.get_pending_applications()
