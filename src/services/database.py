@@ -141,25 +141,31 @@ class Database:
                 
         try:
             async with self.pool.acquire() as conn:
-                # Удаляем связанные данные из других таблиц
-                await conn.execute(
-                    "DELETE FROM userrole WHERE user_id = (SELECT user_id FROM users WHERE telegram_id = $1)",
-                    telegram_id
-                )
+                async with conn.transaction():
+                    # Удаляем связанные данные из других таблиц
+                    await conn.execute(
+                        "DELETE FROM userrole WHERE user_id = (SELECT user_id FROM users WHERE telegram_id = $1)",
+                        telegram_id
+                    )
 
-                await conn.execute(
-                    "DELETE FROM usercategory WHERE user_id = (SELECT user_id FROM users WHERE telegram_id = $1)",
-                    telegram_id
-                )
-                
-                # Удаляем пользователя
-                result = await conn.execute(
-                    "DELETE FROM users WHERE telegram_id = $1",
-                    telegram_id
-                )
-                
-                # Если удалена хотя бы одна строка - успех
-                return "DELETE 1" in result
+                    await conn.execute(
+                        "DELETE FROM usercategory WHERE user_id = (SELECT user_id FROM users WHERE telegram_id = $1)",
+                        telegram_id
+                    )
+
+                    await conn.execute(
+                        "DELETE FROM application WHERE user_id = (SELECT user_id FROM users WHERE telegram_id = $1)",
+                        telegram_id
+                    )
+                    
+                    # Удаляем пользователя
+                    result = await conn.execute(
+                        "DELETE FROM users WHERE telegram_id = $1",
+                        telegram_id
+                    )
+                    
+                    # Если удалена хотя бы одна строка - успех
+                    return "DELETE 1" in result
         except Exception as e:
             print(f"❌ Ошибка при удалении пользователя: {e}")
             return False
@@ -398,4 +404,175 @@ class Database:
                 return True
             except Exception as e:
                 print(f"Error updating application status: {e}")
+                return False
+            
+    async def get_all_olympiads(self):
+        """Получение всех олимпиад"""
+        if self.pool is None:
+            if not await self.initialize():
+                return []
+        async with self.pool.acquire() as conn:
+            return await conn.fetch(
+                "SELECT * FROM Olympiad ORDER BY start_date DESC"
+            )
+
+    async def get_olympiad_by_id(self, olympiad_id: int):
+        """Получение олимпиады по ID"""
+        if self.pool is None:
+            if not await self.initialize():
+                return None
+        async with self.pool.acquire() as conn:
+            return await conn.fetchrow(
+                "SELECT * FROM Olympiad WHERE olympiad_id = $1",
+                olympiad_id
+            )
+
+    async def get_subject_name(self, subject_id: int) -> str:
+        """Получение названия дисциплины по ID"""
+        if self.pool is None:
+            if not await self.initialize():
+                return "Неизвестная дисциплина"
+        async with self.pool.acquire() as conn:
+            subject = await conn.fetchrow(
+                "SELECT title FROM Subject WHERE subject_id = $1",
+                subject_id
+            )
+            return subject['title'] if subject else "Не указана"
+
+    async def get_applications_for_olympiad(self, olympiad_id: int):
+        """Получение всех заявок для олимпиады"""
+        if self.pool is None:
+            if not await self.initialize():
+                return []
+        async with self.pool.acquire() as conn:
+            return await conn.fetch(
+                """
+                SELECT 
+                    a.application_id,
+                    u.first_name,
+                    u.last_name,
+                    s.status_name,
+                    a.created_date
+                FROM Application a
+                JOIN Users u ON a.user_id = u.user_id
+                JOIN ApplicationStatus s ON a.status_id = s.status_id
+                WHERE a.olympiad_id = $1
+                ORDER BY a.created_date DESC
+                """,
+                olympiad_id
+            )
+
+    async def get_application_details(self, application_id: int):
+        """Получение детальной информации о заявке"""
+        if self.pool is None:
+            if not await self.initialize():
+                return None
+        async with self.pool.acquire() as conn:
+            return await conn.fetchrow(
+                """
+                SELECT 
+                    u.user_id,
+                    a.olympiad_id,
+                    a.application_id,
+                    u.first_name,
+                    u.last_name,
+                    u.midle_name,
+                    o.title AS olympiad_title,
+                    s.status_name,
+                    a.created_date
+                FROM Application a
+                JOIN Users u ON a.user_id = u.user_id
+                JOIN Olympiad o ON a.olympiad_id = o.olympiad_id
+                JOIN ApplicationStatus s ON a.status_id = s.status_id
+                WHERE a.application_id = $1
+                """,
+                application_id
+            )
+
+    async def update_application_status(self, application_id: int, status_name: str) -> bool:
+        """Обновление статуса заявки"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+                
+        async with self.pool.acquire() as conn:
+            try:
+                status_id = await conn.fetchval(
+                    "SELECT status_id FROM ApplicationStatus WHERE status_name = $1",
+                    status_name
+                )
+                
+                if not status_id:
+                    return False
+                    
+                await conn.execute(
+                    "UPDATE Application SET status_id = $1 WHERE application_id = $2",
+                    status_id, application_id
+                )
+                return True
+            except Exception as e:
+                print(f"Error updating application status: {e}")
+                return False
+
+    async def delete_application(self, application_id: int) -> bool:
+        """Удаление заявки по ID"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM Application WHERE application_id = $1",
+                application_id
+            )
+            return "DELETE 1" in result
+
+    async def update_olympiad_field(self, olympiad_id: int, field: str, value: str) -> bool:
+        """Обновление поля олимпиады"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+                
+        async with self.pool.acquire() as conn:
+            try:
+                # Для дат нужно преобразование
+                if field in ['start_date', 'end_date']:
+                    # Предполагаем, что value в формате ГГГГ-ММ-ДД
+                    await conn.execute(
+                        f"UPDATE Olympiad SET {field} = $1::date WHERE olympiad_id = $2",
+                        value, olympiad_id
+                    )
+                else:
+                    await conn.execute(
+                        f"UPDATE Olympiad SET {field} = $1 WHERE olympiad_id = $2",
+                        value, olympiad_id
+                    )
+                return True
+            except Exception as e:
+                print(f"Error updating olympiad field: {e}")
+                return False
+
+    async def delete_olympiad(self, olympiad_id: int) -> bool:
+        """Удаление олимпиады и связанных данных"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+                
+        async with self.pool.acquire() as conn:
+            try:
+                # Удаляем связанные заявки
+                await conn.execute(
+                    "DELETE FROM Application WHERE olympiad_id = $1",
+                    olympiad_id
+                )
+                
+                # Удаляем олимпиаду
+                result = await conn.execute(
+                    "DELETE FROM Olympiad WHERE olympiad_id = $1",
+                    olympiad_id
+                )
+                
+                # Если удалена хотя бы одна строка - успех
+                return "DELETE 1" in result
+            except Exception as e:
+                print(f"❌ Ошибка при удалении олимпиады: {e}")
                 return False
