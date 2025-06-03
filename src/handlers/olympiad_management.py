@@ -307,8 +307,8 @@ async def change_application_status(callback: CallbackQuery):
 async def set_application_status(callback: CallbackQuery):
     """Установка нового статуса заявки"""
     parts = callback.data.split("_")
-    application_id = int(parts[4])
-    new_status = parts[5]
+    application_id = int(parts[3])
+    new_status = parts[4]
     
     success = await db.update_application_status(application_id, new_status)
     

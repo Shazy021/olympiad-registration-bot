@@ -476,7 +476,7 @@ class Database:
                     a.application_id,
                     u.first_name,
                     u.last_name,
-                    u.midle_name,
+                    u.middle_name,
                     o.title AS olympiad_title,
                     s.status_name,
                     a.created_date

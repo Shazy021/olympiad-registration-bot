@@ -174,7 +174,7 @@ def olympiad_applications_keyboard(applications, olympiad_id):
     """Клавиатура заявок на конкретную олимпиаду"""
     builder = InlineKeyboardBuilder()
     for app in applications:
-        status_icon = "🟡" if app['status_name'] == 'pending' else "🟢" if app['status_name'] == 'approved' else "🔴"
+        status_icon = "🟡" if app['status_name'] == 'Рассмотрение' else "🟢" if app['status_name'] == 'Одобрена' else "🔴"
         builder.button(
             text=f"{status_icon} {app['first_name']} {app['last_name']} - {app['status_name']}",
             callback_data=f"app_admin_app_check_{app['application_id']}"
@@ -197,7 +197,7 @@ def application_status_change_keyboard(application_id, current_status):
     """Клавиатура изменения статуса заявки"""
     builder = InlineKeyboardBuilder()
     
-    statuses = ["Рассмотрение", "approved", "rejected"]
+    statuses = ["Рассмотрение", "Одобрена", "Отклонена"]
     for status in statuses:
         if status != current_status:
             builder.button(
