@@ -5,7 +5,7 @@ from aiogram.filters import Command
 
 from states.delete_account import DeleteAccountStates
 from services.database import Database
-from keyboards.keyboards import confirm_delete_keyboard
+from keyboards.keyboards import confirm_delete_keyboard_del_acc
 
 router = Router()
 db = Database()
@@ -21,7 +21,7 @@ async def cmd_delete_account(message: Message, state: FSMContext):
         "- Отменит все ваши заявки\n"
         "- Необратимо!\n\n"
         "Подтвердите удаление:",
-        reply_markup=confirm_delete_keyboard()
+        reply_markup=confirm_delete_keyboard_del_acc()
     )
     await state.set_state(DeleteAccountStates.confirm_delete)
 
