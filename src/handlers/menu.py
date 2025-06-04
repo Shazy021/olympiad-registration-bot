@@ -1,7 +1,13 @@
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
+from states import EditProfileStates
 from keyboards.keyboards import main_menu_keyboard, settings_keyboard
 from services.database import Database
+from keyboards.keyboards import (
+    edit_profile_field_keyboard,
+    get_categories_keyboard
+)
 
 router = Router()
 db = Database()
@@ -60,4 +66,123 @@ async def view_profile(message: Message):
     
     await message.answer(profile_text, reply_markup=main_menu_keyboard(await db.is_admin_or_moderator(message.from_user.id)))
 
-# Добавим обработчики для остальных пунктов меню позже
+@router.message(F.text == "✏️ Изменить профиль")
+async def start_edit_profile(message: Message, state: FSMContext):
+    """Начало процесса редактирования профиля"""
+    await state.set_state(EditProfileStates.select_field)
+    await message.answer(
+        "Выберите поле, которое хотите изменить:",
+        reply_markup=edit_profile_field_keyboard()
+    )
+
+@router.callback_query(EditProfileStates.select_field, F.data.startswith("profile_edit_field_"))
+async def select_field_to_edit(callback: CallbackQuery, state: FSMContext):
+    """Выбор поля для редактирования"""
+    field = callback.data.split("_")[-1]
+    print(field)
+    await state.update_data(edit_field=field)
+    
+    field_names = {
+        "first": "имя",
+        "last": "фамилию",
+        "middle": "отчество",
+        "category": "категорию"
+    }
+    
+    if field == "category":
+        categories = await db.get_categories()
+        await callback.message.answer(
+            "Выберите новую категорию:",
+            reply_markup=get_categories_keyboard(categories, is_edit=True)
+        )
+        await state.set_state(EditProfileStates.edit_category)
+    else:
+        await callback.message.answer(f"Введите новое {field_names.get(field, 'значение')}:")
+        
+        # Устанавливаем соответствующее состояние
+        if field == "first":
+            await state.set_state(EditProfileStates.edit_first_name)
+        elif field == "last":
+            await state.set_state(EditProfileStates.edit_last_name)
+        elif field == "middle":
+            await state.set_state(EditProfileStates.edit_middle_name)
+    
+    await callback.message.delete()
+    await callback.answer()
+
+@router.message(EditProfileStates.edit_first_name)
+async def process_edit_first_name(message: Message, state: FSMContext):
+    """Обработка нового имени"""
+    success = await db.update_user_profile(
+        message.from_user.id,
+        first_name=message.text
+    )
+    
+    if success:
+        await message.answer("✅ Имя успешно обновлено!")
+    else:
+        await message.answer("❌ Ошибка при обновлении имени")
+    
+    await state.clear()
+
+@router.message(EditProfileStates.edit_last_name)
+async def process_edit_last_name(message: Message, state: FSMContext):
+    """Обработка новой фамилии"""
+    success = await db.update_user_profile(
+        message.from_user.id,
+        last_name=message.text
+    )
+    
+    if success:
+        await message.answer("✅ Фамилия успешно обновлена!")
+    else:
+        await message.answer("❌ Ошибка при обновлении фамилии")
+    
+    await state.clear()
+
+@router.message(EditProfileStates.edit_middle_name)
+async def process_edit_middle_name(message: Message, state: FSMContext):
+    """Обработка нового отчества"""
+    # Если пользователь ввел "-", сохраняем как None
+    middle_name = message.text if message.text != "-" else None
+    
+    success = await db.update_user_profile(
+        message.from_user.id,
+        middle_name=middle_name
+    )
+    
+    if success:
+        await message.answer("✅ Отчество успешно обновлено!")
+    else:
+        await message.answer("❌ Ошибка при обновлении отчества")
+    
+    await state.clear()
+
+@router.callback_query(EditProfileStates.edit_category, F.data.startswith("edit_cat_"))
+async def process_edit_category(callback: CallbackQuery, state: FSMContext):
+    """Обработка новой категории"""
+    category_id = int(callback.data.split("_")[2])
+    success = await db.update_user_profile(
+        callback.from_user.id,
+        category_id=category_id
+    )
+    
+    if success:
+        await callback.message.answer("✅ Категория успешно обновлена!")
+    else:
+        await callback.message.answer("❌ Ошибка при обновлении категории")
+    
+    await callback.message.delete()
+    await state.clear()
+    await callback.answer()
+
+@router.callback_query(F.data == "cancel_edit_profile")
+async def cancel_edit_profile(callback: CallbackQuery, state: FSMContext):
+    """Отмена редактирования профиля"""
+    await state.clear()
+    await callback.message.answer(
+        "Редактирование профиля отменено",
+        reply_markup=main_menu_keyboard(await db.is_admin_or_moderator(callback.from_user.id))
+    )
+    await callback.message.delete()
+    await callback.answer()
