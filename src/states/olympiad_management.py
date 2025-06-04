@@ -25,3 +25,10 @@ class EditOlympiadStates(StatesGroup):
     edit_start_date = State()
     edit_end_date = State()
     edit_subject = State()
+
+class EditProfileStates(StatesGroup):
+    select_field = State()
+    edit_first_name = State()
+    edit_last_name = State()
+    edit_middle_name = State()
+    edit_category = State()
