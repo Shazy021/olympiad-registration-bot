@@ -36,14 +36,13 @@ def main_menu_keyboard(is_admin=False):
     builder.button(text="👤 Профиль")
     builder.button(text="📋 Мои заявки")
     builder.button(text="🏆 Доступные олимпиады")
-    builder.button(text="📊 Мои результаты")
     builder.button(text="⚙️ Настройки")
     builder.button(text="ℹ️ Помощь")
     if is_admin:
         builder.button(text="👑 Админ-панель")
-        builder.adjust(1, 2, 2, 1, 1)
-    else:
         builder.adjust(1, 2, 2, 1)
+    else:
+        builder.adjust(1, 2, 2)
     return builder.as_markup(resize_keyboard=True)
 
 def settings_keyboard():
@@ -67,7 +66,6 @@ def admin_main_keyboard():
     builder.button(text="➕ Добавить олимпиаду")
     builder.button(text="📋 Список олимпиад")
     builder.button(text="📝 Заявки на модерации")
-    builder.button(text="📊 Отчеты")
     builder.button(text="🏠 Главное меню")
     builder.adjust(2, 2, 1)
     return builder.as_markup(resize_keyboard=True)
@@ -166,8 +164,9 @@ def olympiad_detail_keyboard(olympiad_id):
     builder.button(text="✏️ Редактировать", callback_data=f"edit_olympiad_{olympiad_id}")
     builder.button(text="🗑️ Удалить", callback_data=f"delete_olympiad_{olympiad_id}")
     builder.button(text="📋 Заявки", callback_data=f"view_olympiad_apps_{olympiad_id}")
+    builder.button(text="📊 Экспорт отчета в Excel", callback_data=f"export_olympiad_{olympiad_id}")
     builder.button(text="🔙 К списку", callback_data="back_to_olympiads_list")
-    builder.adjust(2, 2)
+    builder.adjust(2, 2, 1)
     return builder.as_markup()
 
 def olympiad_applications_keyboard(applications, olympiad_id):
@@ -234,4 +233,30 @@ def confirm_delete_keyboard(entity_type, entity_id):
         callback_data=f"confirm_delete_{entity_type}_no"
     )
     builder.adjust(2)
+    return builder.as_markup()
+
+def edit_profile_field_keyboard():
+    """Клавиатура выбора поля для редактирования профиля"""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Имя", callback_data="profile_edit_field_first")
+    builder.button(text="Фамилия", callback_data="profile_edit_field_last")
+    builder.button(text="Отчество", callback_data="profile_edit_field_middle")
+    builder.button(text="Категория", callback_data="profile_edit_field_category")
+    builder.button(text="❌ Отменить", callback_data="cancel_edit_profile")
+    builder.adjust(2, 2, 1)
+    return builder.as_markup()
+
+def get_categories_keyboard(categories, is_edit=False):
+    """Клавиатура выбора категории"""
+    builder = InlineKeyboardBuilder()
+    prefix = "edit_cat_" if is_edit else "cat_"
+    
+    for category in categories:
+        builder.button(
+            text=category['category_name'],
+            callback_data=f"{prefix}{category['category_id']}"
+        )
+    
+    builder.button(text="❌ Отменить", callback_data="cancel_edit_profile")
+    builder.adjust(1)
     return builder.as_markup()
