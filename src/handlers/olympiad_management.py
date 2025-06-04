@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, FSInputFile
 from services.database import Database
 from states import AddOlympiadStates, EditOlympiadStates
 from keyboards.keyboards import (
@@ -17,6 +17,8 @@ from keyboards.keyboards import (
     application_status_change_keyboard
 )
 from datetime import datetime
+from services.excel_export import generate_olympiad_report
+import os
 
 router = Router()
 db = Database()
@@ -561,3 +563,39 @@ async def back_to_applications_list(callback: CallbackQuery):
         "📋 Список всех олимпиад:",
         reply_markup=olympiads_list_keyboard(olympiads, page=0)
     )
+
+@router.callback_query(F.data.startswith("export_olympiad_"))
+async def export_olympiad_report(callback: CallbackQuery):
+    """Генерация и отправка отчета по заявкам на олимпиаду"""
+    olympiad_id = int(callback.data.split("_")[2])
+    
+    # Получаем информацию об олимпиаде
+    olympiad = await db.get_full_olympiad_info(olympiad_id)
+    if not olympiad:
+        await callback.answer("Олимпиада не найдена")
+        return
+        
+    # Получаем заявки на олимпиаду
+    applications = await db.get_applications_for_olympiad(olympiad_id)
+    
+    # Генерируем отчет
+    try:
+        filename = generate_olympiad_report(olympiad, applications)
+
+        # Создаем объект файла для отправки
+        input_file = FSInputFile(filename)
+        
+        # Отправляем файл пользователю
+        with open(filename, 'rb') as file:
+            await callback.message.answer_document(
+                input_file,
+                caption=f"Отчет по заявкам на олимпиаду: {olympiad['title']}"
+            )
+        
+        # Удаляем временный файл
+        os.remove(filename)
+    except Exception as e:
+        print(f"❌ Ошибка при генерации отчета: {e}")
+        await callback.message.answer("❌ Произошла ошибка при генерации отчета")
+    
+    await callback.answer()
