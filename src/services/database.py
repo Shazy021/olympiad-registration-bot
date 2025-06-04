@@ -451,6 +451,7 @@ class Database:
                     a.application_id,
                     u.first_name,
                     u.last_name,
+                    u.middle_name,
                     s.status_name,
                     a.created_date
                 FROM Application a
@@ -576,3 +577,73 @@ class Database:
             except Exception as e:
                 print(f"❌ Ошибка при удалении олимпиады: {e}")
                 return False
+            
+    async def get_full_olympiad_info(self, olympiad_id: int):
+        """Получение полной информации об олимпиаде с названием дисциплины"""
+        if self.pool is None:
+            if not await self.initialize():
+                return None
+        async with self.pool.acquire() as conn:
+            return await conn.fetchrow(
+                """
+                SELECT 
+                    o.*,
+                    s.title AS subject_title
+                FROM Olympiad o
+                JOIN Subject s ON o.subject_id = s.subject_id
+                WHERE o.olympiad_id = $1
+                """,
+                olympiad_id
+            )
+    
+    async def update_user_profile(self, telegram_id: int, **kwargs):
+        """Обновление профиля пользователя"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+                
+        async with self.pool.acquire() as conn:
+            try:
+                user = await self.get_user(telegram_id)
+                if not user:
+                    return False
+                    
+                # Обновление основных данных пользователя
+                basic_fields = ['first_name', 'last_name', 'middle_name']
+                basic_updates = {k: v for k, v in kwargs.items() if k in basic_fields}
+                
+                if basic_updates:
+                    set_clauses = []
+                    values = []
+                    for key, value in basic_updates.items():
+                        set_clauses.append(f"{key} = ${len(set_clauses)+1}")
+                        values.append(value)
+                    
+                    query = f"""
+                        UPDATE Users
+                        SET {", ".join(set_clauses)}
+                        WHERE user_id = ${len(set_clauses)+1}
+                    """
+                    values.append(user['user_id'])
+                    await conn.execute(query, *values)
+                
+                # Обновление категории
+                if 'category_id' in kwargs:
+                    category_id = kwargs['category_id']
+                    await conn.execute(
+                        "UPDATE UserCategory SET category_id = $1 WHERE user_id = $2",
+                        category_id, user['user_id']
+                    )
+
+                return True
+            except Exception as e:
+                print(f"Error updating user profile: {e}")
+                return False
+
+    async def get_categories(self):
+        """Получение всех категорий"""
+        if self.pool is None:
+            if not await self.initialize():
+                return []
+        async with self.pool.acquire() as conn:
+            return await conn.fetch("SELECT * FROM Category ORDER BY category_name")
