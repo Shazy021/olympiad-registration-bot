@@ -17,7 +17,7 @@ def confirm_olimp_keyboard():
 def role_keyboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="🎓 Студент", callback_data="role_student")
-    builder.button(text="👨‍🏫 Преподаватель", callback_data="role_teacher")
+    builder.button(text="👨‍🏫 Модератор", callback_data="role_moderator")
     builder.button(text="👑 Администратор", callback_data="role_admin")
     builder.adjust(1)
     return builder.as_markup()

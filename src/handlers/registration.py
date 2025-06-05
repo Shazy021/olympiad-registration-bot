@@ -89,7 +89,7 @@ async def process_category_selection(callback: CallbackQuery, state: FSMContext)
     
     role_mapping = {
         "student": "🎓 Студент",
-        "teacher": "👨‍🏫 Преподаватель",
+        "moderator": "👨‍🏫 Модератор",
         "admin": "👑 Администратор"
     }
     role_name = role_mapping.get(data['role'], "❓ Неизвестная роль")
