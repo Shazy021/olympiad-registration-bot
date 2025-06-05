@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from services.database import Database
-from states import AddOlympiadStates, EditOlympiadStates
+from states import AddOlympiadStates, EditOlympiadStates, EditApplicationMessage
 from keyboards.keyboards import (
     admin_main_keyboard,
     subjects_keyboard,
@@ -238,6 +238,8 @@ async def view_application_admin(callback: CallbackQuery):
     if not application:
         await callback.answer("Заявка не найдена")
         return
+
+    messages = await db.get_application_messages(application_id)
         
     # Форматируем информацию
     created_date = application['created_date'].strftime("%d.%m.%Y %H:%M")
@@ -248,6 +250,14 @@ async def view_application_admin(callback: CallbackQuery):
         f"🔄 Статус: {application['status_name']}\n"
         f"📅 Дата подачи: {created_date}"
     )
+    
+    if messages:
+        application_info += "\n\n💬 Сообщение:"
+        for i, msg in enumerate(messages, 1):
+            application_info += f"\n{i}. {msg['first_name']} {msg['last_name']} ({msg['sent_date'].strftime('%d.%m.%Y %H:%M')}):\n{msg['message_text']}"
+
+    if not messages:
+        application_info += "\n\n💬 Сообщение: не найдено"
     
     await callback.message.answer(
         application_info,
@@ -449,7 +459,7 @@ async def process_edit_complete(message: Message, state: FSMContext, success: bo
     await view_olympiad_details_by_id(message.bot, message.chat.id, data['olympiad_id'])
 
 async def view_olympiad_details_by_id(bot, chat_id, olympiad_id):
-    """Показывает детали олимпиады по ID"""
+    """Показывает детали олимпиады по ID (Вспомогательная при обработках)"""
     olympiad = await db.get_olympiad_by_id(olympiad_id)
     if not olympiad:
         await bot.send_message(chat_id, "Олимпиада не найдена")
@@ -548,7 +558,7 @@ async def back_to_applications_list(callback: CallbackQuery):
 
 @router.callback_query(F.data == "cancel_editing_olymp_field")
 async def back_to_applications_list(callback: CallbackQuery):
-    """Возврат к списку заявок на олимпиаду"""
+    """Возврат к списку олимпиад"""
     await callback.message.bot.delete_message(callback.message.chat.id, callback.message.message_id)
     if not await db.is_admin_or_moderator(callback.from_user.id):
         return
@@ -599,3 +609,97 @@ async def export_olympiad_report(callback: CallbackQuery):
         await callback.message.answer("❌ Произошла ошибка при генерации отчета")
     
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("edit_app_message_"))
+async def start_edit_application_message(callback: CallbackQuery, state: FSMContext):
+    """Начало редактирования сообщения для заявки"""
+    application_id = int(callback.data.split("_")[3])
+        
+    # Получаем текущее сообщение модератора (если есть)
+    messages = await db.get_application_messages(application_id)
+    current_message = ""
+        
+    if messages:
+        # Ищем сообщение текущего модератора
+        for msg in messages:
+            moderator = await db.get_user(msg['user_id'])
+            if moderator and moderator['telegram_id'] == callback.from_user.id:
+                current_message = msg['message_text']
+                break
+        
+    await state.update_data(application_id=application_id)
+        
+    if current_message:
+        await callback.message.answer(
+            f"Текущее сообщение: {current_message}\n\n"
+            "Введите новое сообщение для заявки (или отправьте '-' чтобы удалить):"
+        )
+    else:
+        await callback.message.answer(
+            "Введите сообщение для заявки (или отправьте '-' чтобы удалить):"
+        )
+        
+    await state.set_state(EditApplicationMessage.waiting_for_message)
+    await callback.answer()
+
+@router.message(EditApplicationMessage.waiting_for_message)
+async def process_edit_application_message(message: Message, state: FSMContext):
+    """Обработка нового сообщения для заявки"""
+    data = await state.get_data()
+    application_id = data['application_id']
+    
+    # Получаем user_id модератора
+    moderator = await db.get_user(message.from_user.id)
+    if not moderator:
+        await message.answer("❌ Ошибка: модератор не найден")
+        await state.clear()
+        return
+    
+    # Удаляем предыдущее сообщение этого модератора
+    await db.delete_application_messages(application_id, moderator['user_id'])
+    
+    if message.text.strip() == '-':
+        # Пользователь хочет удалить сообщение
+        await message.answer("✅ Сообщение удалено!")
+    else:
+        # Сохраняем новое сообщение
+        success = await db.create_message(
+            user_id=moderator['user_id'],
+            application_id=application_id,
+            message_text=message.text
+        )
+        
+        if success:
+            await message.answer("✅ Сообщение успешно обновлено!")
+        else:
+            await message.answer("❌ Ошибка при обновлении сообщения")
+    
+    await state.clear()
+    
+    # Показываем обновленные детали заявки
+    application = await db.get_application_details(application_id)
+    messages = await db.get_application_messages(application_id)
+    
+    # Форматируем информацию
+    created_date = application['created_date'].strftime("%d.%m.%Y %H:%M")
+    application_info = (
+        f"📝 Заявка #{application_id}\n\n"
+        f"👤 Пользователь: {application['first_name']} {application['last_name']} {application['middle_name']}\n"
+        f"🏆 Олимпиада: {application['olympiad_title']}\n"
+        f"🔄 Статус: {application['status_name']}\n"
+        f"📅 Дата подачи: {created_date}"
+    )
+    
+    if messages:
+        application_info += "\n\n💬 Сообщение:"
+        for i, msg in enumerate(messages, 1):
+            application_info += f"\n{i}. {msg['first_name']} {msg['last_name']} ({msg['sent_date'].strftime('%d.%m.%Y %H:%M')}):\n{msg['message_text']}"
+
+    if not messages:
+        application_info += "\n\n💬 Сообщение: не найдено"
+    
+    await message.answer(
+        application_info,
+        reply_markup=application_action_keyboard(application_id)
+    )
