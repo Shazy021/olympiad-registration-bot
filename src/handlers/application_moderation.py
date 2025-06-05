@@ -1,9 +1,12 @@
 from aiogram import Router, F
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from services.database import Database
+from states import ModerationStates
 from keyboards.keyboards import (
     application_list_keyboard,
-    moder_application_action_keyboard
+    moder_application_action_keyboard,
+    skip_comment_keyboard
 )
 
 router = Router()
@@ -26,30 +29,78 @@ async def show_pending_applications(message: Message):
     )
 
 @router.callback_query(F.data.startswith("app_approve_"))
-async def approve_application(callback: CallbackQuery):
+async def approve_application(callback: CallbackQuery, state: FSMContext):
     application_id = int(callback.data.split("_")[2])
-    success = await db.update_application_status(application_id, "Одобрена")
-    
-    if success:
-        await callback.message.answer("✅ Заявка одобрена!")
-        # Здесь можно добавить уведомление пользователю
-    else:
-        await callback.message.answer("❌ Ошибка при обновлении статуса")
-    
+    await state.update_data(application_id=application_id, action="Одобрена")
+    await callback.message.answer(
+        "Введите сообщение для заявки (или нажмите 'Пропустить'):",
+        reply_markup=skip_comment_keyboard()
+    )
+    await state.set_state(ModerationStates.waiting_comment)
     await callback.answer()
 
 @router.callback_query(F.data.startswith("app_reject_"))
-async def reject_application(callback: CallbackQuery):
+async def reject_application(callback: CallbackQuery, state: FSMContext):
     application_id = int(callback.data.split("_")[2])
-    success = await db.update_application_status(application_id, "Отклонена")
+    await state.update_data(application_id=application_id, action="reject")
+    await callback.message.answer(
+        "Введите сообщение для заявки (или нажмите 'Пропустить'):",
+        reply_markup=skip_comment_keyboard()
+    )
+    await state.set_state(ModerationStates.waiting_comment)
+    await callback.answer()
+
+@router.callback_query(ModerationStates.waiting_comment, F.data == "skip_comment")
+async def skip_comment(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    application_id = data['application_id']
+    action = data['action']
+    
+    # Обновляем статус без комментария
+    status = "Одобрена" if action == "Одобрена" else "Отклонена"
+    success = await db.update_application_status(application_id, status)
     
     if success:
-        await callback.message.answer("❌ Заявка отклонена")
-        # Здесь можно добавить уведомление пользователю
+        status_icon = "✅" if action == "Одобрена" else "❌"
+        await callback.message.answer(f"{status_icon} Заявка {status.lower()}!")
     else:
         await callback.message.answer("❌ Ошибка при обновлении статуса")
     
+    await state.clear()
     await callback.answer()
+
+@router.message(ModerationStates.waiting_comment)
+async def process_moderation_comment(message: Message, state: FSMContext):
+    data = await state.get_data()
+    application_id = data['application_id']
+    action = data['action']
+    
+    # Обновляем статус
+    status = "Одобрена" if action == "Одобрена" else "Отклонена"
+    success = await db.update_application_status(application_id, status)
+    
+    if not success:
+        await message.answer("❌ Ошибка при обновлении статуса")
+        await state.clear()
+        return
+    
+    # Получаем user_id модератора
+    moderator = await db.get_user(message.from_user.id)
+    
+    # Сохраняем сообщение
+    success = await db.create_message(
+        user_id=moderator['user_id'],
+        application_id=application_id,
+        message_text=message.text
+    )
+    
+    if success:
+        status_icon = "✅" if action == "Одобрена" else "❌"
+        await message.answer(f"{status_icon} Заявка {status.lower()} с комментарием!")
+    else:
+        await message.answer(f"✅ Статус обновлен, но не удалось сохранить комментарий")
+    
+    await state.clear()
 
 @router.callback_query(F.data.startswith("app_id_"))
 async def show_application_details(callback: CallbackQuery):
