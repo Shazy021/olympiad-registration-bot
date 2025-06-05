@@ -647,3 +647,109 @@ class Database:
                 return []
         async with self.pool.acquire() as conn:
             return await conn.fetch("SELECT * FROM Category ORDER BY category_name")
+        
+    # Сообщения для заявок
+    async def create_message(
+        self,
+        user_id: int,
+        application_id: int,
+        message_text: str
+    ) -> bool:
+        """Создание нового сообщения по заявке"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+                
+        async with self.pool.acquire() as conn:
+            try:
+                await conn.execute(
+                    """
+                    INSERT INTO Messages (user_id, application_id, message_text)
+                    VALUES ($1, $2, $3)
+                    """,
+                    user_id, application_id, message_text
+                )
+                return True
+            except Exception as e:
+                print(f"Error creating message: {e}")
+                return False
+            
+    async def get_application_messages(self, application_id: int):
+        """Получение сообщения по заявке"""
+        if self.pool is None:
+            if not await self.initialize():
+                return []
+                
+        async with self.pool.acquire() as conn:
+            return await conn.fetch(
+                """
+                SELECT m.*, u.first_name, u.last_name 
+                FROM Messages m
+                JOIN Users u ON m.user_id = u.user_id
+                WHERE application_id = $1
+                ORDER BY sent_date DESC
+                """,
+                application_id
+            )
+    async def delete_application_messages(self, application_id: int, user_id: int) -> bool:
+        """Удаляет все сообщения по заявке от конкретного пользователя"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+                
+        async with self.pool.acquire() as conn:
+            try:
+                await conn.execute(
+                    "DELETE FROM Messages WHERE application_id = $1 AND user_id = $2",
+                    application_id, user_id
+                )
+                return True
+            except Exception as e:
+                print(f"Error deleting messages: {e}")
+                return False
+
+
+    async def get_user_applications(self, user_id: int):
+        """Получение заявок пользователя"""
+        if self.pool is None:
+            if not await self.initialize():
+                return []
+                
+        async with self.pool.acquire() as conn:
+            return await conn.fetch(
+                """
+                SELECT 
+                    a.application_id,
+                    o.title AS olympiad_title,
+                    s.status_name,
+                    a.created_date
+                FROM Application a
+                JOIN Olympiad o ON a.olympiad_id = o.olympiad_id
+                JOIN ApplicationStatus s ON a.status_id = s.status_id
+                WHERE a.user_id = $1
+                ORDER BY a.created_date DESC
+                """,
+                user_id
+            )
+
+    async def get_application_moderator_message(self, application_id: int):
+        """Получение сообщения модератора для заявки"""
+        if self.pool is None:
+            if not await self.initialize():
+                return None
+                
+        async with self.pool.acquire() as conn:
+            return await conn.fetchrow(
+                """
+                SELECT m.message_text
+                FROM Messages m
+                JOIN Users u ON m.user_id = u.user_id
+                JOIN UserRole ur ON ur.user_id = u.user_id
+                JOIN Role r ON r.role_id = ur.role_id
+                WHERE m.application_id = $1 
+                AND r.role_name IN ('Модератор', 'Администратор')
+                ORDER BY m.sent_date DESC
+                LIMIT 1
+                """,
+                application_id
+            )
