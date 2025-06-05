@@ -188,8 +188,9 @@ def application_action_keyboard(application_id):
     builder = InlineKeyboardBuilder()
     builder.button(text="✏️ Изменить статус", callback_data=f"change_app_status_{application_id}")
     builder.button(text="🗑️ Удалить заявку", callback_data=f"delete_app_{application_id}")
+    builder.button(text="💬 Изменить сообщение", callback_data=f"edit_app_message_{application_id}")
     builder.button(text="🔙 Назад", callback_data=f"back_to_applications_list_{application_id}")
-    builder.adjust(2, 1)
+    builder.adjust(2, 1, 1)
     return builder.as_markup()
 
 def application_status_change_keyboard(application_id, current_status):
@@ -259,4 +260,27 @@ def get_categories_keyboard(categories, is_edit=False):
     
     builder.button(text="❌ Отменить", callback_data="cancel_edit_profile")
     builder.adjust(1)
+    return builder.as_markup()
+
+def skip_comment_keyboard():
+    """Клавиатура для пропуска комментария"""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="⏩ Пропустить", callback_data="skip_comment")
+    return builder.as_markup()
+
+def my_applications_keyboard(applications):
+    """Клавиатура списка заявок пользователя"""
+    builder = InlineKeyboardBuilder()
+    for app in applications:
+        builder.button(
+            text=app['text'],
+            callback_data=f"view_my_app_{app['id']}"
+        )
+    builder.adjust(1)
+    return builder.as_markup()
+
+def back_to_my_applications_keyboard():
+    """Клавиатура для возврата к списку заявок"""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🔙 Назад к моим заявкам", callback_data="back_to_my_applications")
     return builder.as_markup()
