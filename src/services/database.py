@@ -154,6 +154,11 @@ class Database:
                     )
 
                     await conn.execute(
+                        "DELETE FROM messages WHERE application_id IN (SELECT application_id FROM application WHERE user_id = (SELECT user_id FROM users WHERE telegram_id = $1))",
+                        telegram_id
+                    )
+
+                    await conn.execute(
                         "DELETE FROM application WHERE user_id = (SELECT user_id FROM users WHERE telegram_id = $1)",
                         telegram_id
                     )
@@ -262,32 +267,6 @@ class Database:
                 "SELECT * FROM Olympiad WHERE olympiad_id = $1",
                 olympiad_id
             )
-
-    async def delete_olympiad(self, olympiad_id: int) -> bool:
-        """Удаление олимпиады и связанных данных"""
-        if self.pool is None:
-            if not await self.initialize():
-                return False
-                
-        async with self.pool.acquire() as conn:
-            try:
-                # Удаляем связанные заявки
-                await conn.execute(
-                    "DELETE FROM Application WHERE olympiad_id = $1",
-                    olympiad_id
-                )
-                
-                # Удаляем олимпиаду
-                result = await conn.execute(
-                    "DELETE FROM Olympiad WHERE olympiad_id = $1",
-                    olympiad_id
-                )
-                
-                # Если удалена хотя бы одна строка - успех
-                return "DELETE 1" in result
-            except Exception as e:
-                print(f"❌ Ошибка при удалении олимпиады: {e}")
-                return False
             
     # Работа с application
     async def has_application(self, telegram_id: int, olympiad_id: int) -> bool:
@@ -557,26 +536,32 @@ class Database:
         if self.pool is None:
             if not await self.initialize():
                 return False
-                
-        async with self.pool.acquire() as conn:
-            try:
-                # Удаляем связанные заявки
-                await conn.execute(
-                    "DELETE FROM Application WHERE olympiad_id = $1",
-                    olympiad_id
-                )
-                
-                # Удаляем олимпиаду
-                result = await conn.execute(
-                    "DELETE FROM Olympiad WHERE olympiad_id = $1",
-                    olympiad_id
-                )
-                
-                # Если удалена хотя бы одна строка - успех
-                return "DELETE 1" in result
-            except Exception as e:
-                print(f"❌ Ошибка при удалении олимпиады: {e}")
-                return False
+        try:    
+            async with self.pool.acquire() as conn:
+                async with conn.transaction():
+                    # Удаляем связанные сообщения
+                    await conn.execute(
+                        "DELETE FROM messages m USING Application a WHERE m.application_id = a.application_id AND a.olympiad_id = $1",
+                        olympiad_id
+                    )
+
+                    # Удаляем связанные заявки
+                    await conn.execute(
+                        "DELETE FROM Application WHERE olympiad_id = $1",
+                        olympiad_id
+                    )
+                    
+                    # Удаляем олимпиаду
+                    result = await conn.execute(
+                        "DELETE FROM Olympiad WHERE olympiad_id = $1",
+                        olympiad_id
+                    )
+                    
+                    # Если удалена хотя бы одна строка - успех
+                    return "DELETE 1" in result
+        except Exception as e:
+            print(f"❌ Ошибка при удалении олимпиады: {e}")
+            return False
             
     async def get_full_olympiad_info(self, olympiad_id: int):
         """Получение полной информации об олимпиаде с названием дисциплины"""
