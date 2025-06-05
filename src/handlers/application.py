@@ -6,7 +6,9 @@ from states import ApplicationStates
 from keyboards.keyboards import (
     olympiads_keyboard,
     main_menu_keyboard,
-    confirm_olimp_keyboard
+    confirm_olimp_keyboard,
+    my_applications_keyboard,
+    back_to_my_applications_keyboard
 )
 
 router = Router()
@@ -90,17 +92,97 @@ async def confirm_application(callback: CallbackQuery, state: FSMContext):
 
 @router.message(F.text == "📋 Мои заявки")
 async def show_my_applications(message: Message):
-    applications = db.get_user_applications(message.from_user.id)
+    """Показывает список заявок пользователя с сообщениями модераторов"""
+    # Получаем user_id пользователя
+    user = await db.get_user(message.from_user.id)
+    if not user:
+        await message.answer("❌ Пользователь не найден")
+        return
+    
+    # Получаем заявки пользователя
+    applications = await db.get_user_applications(user['user_id'])
     
     if not applications:
         await message.answer("У вас нет активных заявок")
         return
     
-    text = "Ваши заявки:\n\n"
+    # Формируем список заявок для клавиатуры
+    app_list = []
     for app in applications:
-        text += f"🏆 {app['olympiad_title']}\n"
-        text += f"📅 {app['registration_date']}\n"
-        text += f"🔄 Статус: {app['status']}\n\n"
+        status_icon = "🟡" if app['status_name'] == 'Рассмотрение' else "🟢" if app['status_name'] == 'Одобрена' else "🔴"
+        app_list.append({
+            "id": app['application_id'],
+            "text": f"{status_icon} {app['olympiad_title']} ({app['status_name']})"
+        })
     
-    await message.answer(text)
+    await message.answer(
+        "📋 Ваши заявки:",
+        reply_markup=my_applications_keyboard(app_list)
+    )
+
+@router.callback_query(F.data.startswith("view_my_app_"))
+async def view_my_application_details(callback: CallbackQuery):
+    """Детальный просмотр заявки пользователя"""
+    application_id = int(callback.data.split("_")[3])
     
+    # Получаем детали заявки
+    application = await db.get_application_details(application_id)
+    if not application:
+        await callback.answer("Заявка не найдена")
+        return
+    
+    # Получаем сообщение модератора для этой заявки
+    message = await db.get_application_moderator_message(application_id)
+    
+    # Форматируем информацию о заявке
+    created_date = application['created_date'].strftime("%d.%m.%Y %H:%M")
+    application_info = (
+        f"📝 Заявка #{application_id}\n"
+        f"🏆 Олимпиада: {application['olympiad_title']}\n"
+        f"🔄 Статус: {application['status_name']}\n"
+        f"📅 Дата подачи: {created_date}"
+    )
+    
+    # Добавляем сообщение модератора если есть
+    if message:
+        application_info += f"\n\n💬 Сообщение модератора:\n{message['message_text']}"
+    else:
+        application_info += "\n\n💬 Сообщение модератора: пока отсутствует"
+    
+    await callback.message.answer(
+        application_info,
+        reply_markup=back_to_my_applications_keyboard()
+    )
+    await callback.message.delete()
+    await callback.answer()
+
+@router.callback_query(F.data == "back_to_my_applications")
+async def back_to_my_applications(callback: CallbackQuery):
+    """Возврат к списку заявок пользователя"""
+    await callback.message.bot.delete_message(callback.message.chat.id, callback.message.message_id)
+    user = await db.get_user(callback.from_user.id)
+    if not user:
+        await callback.message.answer("❌ Пользователь не найден")
+        return
+    
+    # Получаем заявки пользователя
+    applications = await db.get_user_applications(user['user_id'])
+    
+    if not applications:
+        await callback.message.answer("У вас нет активных заявок")
+        return
+    
+    # Формируем список заявок для клавиатуры
+    app_list = []
+    for app in applications:
+        status_icon = "🟡" if app['status_name'] == 'Рассмотрение' else "🟢" if app['status_name'] == 'Одобрена' else "🔴"
+        app_list.append({
+            "id": app['application_id'],
+            "text": f"{status_icon} {app['olympiad_title']} ({app['status_name']})"
+        })
+    
+    await callback.message.answer(
+        "📋 Ваши заявки:",
+        reply_markup=my_applications_keyboard(app_list)
+    )
+    await callback.answer()
