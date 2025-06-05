@@ -32,3 +32,9 @@ class EditProfileStates(StatesGroup):
     edit_last_name = State()
     edit_middle_name = State()
     edit_category = State()
+
+class ModerationStates(StatesGroup):
+    waiting_comment = State()
+
+class EditApplicationMessage(StatesGroup):
+    waiting_for_message = State()
