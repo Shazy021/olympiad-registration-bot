@@ -49,7 +49,6 @@ async def view_profile(message: Message):
     await message.bot.delete_message(message.chat.id, message.message_id)
 
     user = await db.get_user(message.from_user.id)
-    print(user)
 
     # Получаем название роли и категории
     role_name = await db.get_role_name(user.get('user_id'))
@@ -79,7 +78,6 @@ async def start_edit_profile(message: Message, state: FSMContext):
 async def select_field_to_edit(callback: CallbackQuery, state: FSMContext):
     """Выбор поля для редактирования"""
     field = callback.data.split("_")[-1]
-    print(field)
     await state.update_data(edit_field=field)
     
     field_names = {
