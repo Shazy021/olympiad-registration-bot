@@ -500,10 +500,15 @@ class Database:
             if not await self.initialize():
                 return False
         async with self.pool.acquire() as conn:
-            result = await conn.execute(
-                "DELETE FROM Application WHERE application_id = $1",
-                application_id
-            )
+            async with conn.transaction():
+                await conn.execute(
+                    "DELETE FROM Messages WHERE application_id = $1",
+                    application_id
+                )
+                result = await conn.execute(
+                    "DELETE FROM Application WHERE application_id = $1",
+                    application_id
+                )
             return "DELETE 1" in result
 
     async def update_olympiad_field(self, olympiad_id: int, field: str, value: str) -> bool:
