@@ -124,7 +124,7 @@ async def confirm_registration(callback: CallbackQuery, state: FSMContext):
     try:
         role_mapping = {
             "student": "Студент",
-            "teacher": "Преподаватель",
+            "moderator": "Модератор",
             "admin": "Администратор"
         }
         role_name = role_mapping.get(data.get('role', 'student'), "Пользователь")
