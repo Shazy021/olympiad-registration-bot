@@ -197,6 +197,51 @@ class Database:
             )
             return result > 0
         
+    async def is_admin(self, telegram_id: int) -> bool:
+        """Проверяет, является ли пользователь администратором"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+                
+        async with self.pool.acquire() as conn:
+            user = await self.get_user(telegram_id)
+            if not user:
+                return False
+                
+            result = await conn.fetchval(
+                """
+                SELECT COUNT(*) 
+                FROM UserRole ur
+                JOIN Role r ON ur.role_id = r.role_id
+                WHERE ur.user_id = $1 AND r.role_name = 'Администратор'
+                """,
+                user['user_id']
+            )
+            return result > 0
+        
+        
+    async def is_moderator(self, telegram_id: int) -> bool:
+        """Проверяет, является ли пользователь модератором"""
+        if self.pool is None:
+            if not await self.initialize():
+                return False
+                
+        async with self.pool.acquire() as conn:
+            user = await self.get_user(telegram_id)
+            if not user:
+                return False
+                
+            result = await conn.fetchval(
+                """
+                SELECT COUNT(*) 
+                FROM UserRole ur
+                JOIN Role r ON ur.role_id = r.role_id
+                WHERE ur.user_id = $1 AND r.role_name = 'Модератор'
+                """,
+                user['user_id']
+            )
+            return result > 0
+        
         # заявки на олимпиаду
     async def get_subjects(self):
         """Получение всех дисциплин"""
