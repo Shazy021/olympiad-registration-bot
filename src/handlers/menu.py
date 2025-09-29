@@ -98,11 +98,11 @@ async def view_profile(message: Message):
     
     profile_text = (
         "👤 Ваш профиль:\n\n"
-        f"▫️ Имя: {user['first_name']}\n"
-        f"▫️ Фамилия: {user['last_name']}\n"
-        f"▫️ Отчество: {user.get('middle_name', 'не указано')}\n"
-        f"▫️ Роль: {role_name}\n"
-        f"▫️ Категория: {category_name}"
+        f"🧑 Имя: {user['first_name']}\n"
+        f"📖 Фамилия: {user['last_name']}\n"
+        f"📝 Отчество: {user.get('middle_name', 'не указано')}\n"
+        f"🎭 Роль: {role_name}\n"
+        f"🏷️ Категория: {category_name}"
     )
     
     await message.answer(profile_text, reply_markup=main_menu_keyboard(await db.is_admin_or_moderator(message.from_user.id)))
