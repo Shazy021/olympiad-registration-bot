@@ -70,6 +70,13 @@ def admin_main_keyboard():
     builder.adjust(2, 2, 1)
     return builder.as_markup(resize_keyboard=True)
 
+def moderator_main_keyboard():
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="📝 Заявки на модерации")
+    builder.button(text="🏠 Главное меню")
+    builder.adjust(1, 1)
+    return builder.as_markup(resize_keyboard=True)
+
 def subjects_keyboard(subjects):
     builder = InlineKeyboardBuilder()
     for subject in subjects:

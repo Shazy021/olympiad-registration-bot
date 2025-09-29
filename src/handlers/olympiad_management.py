@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery, FSInputFile
 from services.database import Database
 from states import AddOlympiadStates, EditOlympiadStates, EditApplicationMessage
 from keyboards.keyboards import (
+    moderator_main_keyboard,
     admin_main_keyboard,
     subjects_keyboard,
     confirm_keyboard,
@@ -30,22 +31,29 @@ async def delete_lst_msgs(message: Message):
 
 
 @router.message(F.text == "👑 Админ-панель")
-async def admin_panel(message: Message):
+async def admin_panel(message: Message, state: FSMContext):
+    await state.clear()
+
     if not await db.is_admin_or_moderator(message.from_user.id):
         await message.answer("Доступ запрещен!")
         return
-        
-    await message.answer(
-        "👑 Панель администратора:",
-        reply_markup=admin_main_keyboard()
-    )
+    elif await db.is_admin(message.from_user.id):
+        await message.answer(
+            "👑 Панель администратора:",
+            reply_markup=admin_main_keyboard()
+        )
+    elif await db.is_moderator(message.from_user.id):
+        await message.answer(
+            "👑 Панель модератора:",
+            reply_markup=moderator_main_keyboard()
+        )
 
 @router.message(F.text == "➕ Добавить олимпиаду")
 async def start_adding_olympiad(message: Message, state: FSMContext):
     if not await db.is_admin_or_moderator(message.from_user.id):
         return
         
-    await message.answer("Введите название олимпиады:")
+    await message.answer("Введите название олимпиады или перейдите в главное меню для отмены:")
     await state.set_state(AddOlympiadStates.title)
 
 @router.message(AddOlympiadStates.title)

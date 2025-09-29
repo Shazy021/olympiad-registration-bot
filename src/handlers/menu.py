@@ -14,7 +14,8 @@ router = Router()
 db = Database()
 
 @router.message(F.text == "🏠 Главное меню")
-async def main_menu(message: Message):
+async def main_menu(message: Message, state: FSMContext):
+    await state.clear()
     await message.bot.delete_message(message.chat.id, message.message_id)
 
     await message.answer(
@@ -28,7 +29,8 @@ async def help_command(message: Message):
     await message.bot.delete_message(message.chat.id, message.message_id)
 
     # Проверяем роль пользователя
-    is_admin = await db.is_admin_or_moderator(message.from_user.id)
+    is_admin = await db.is_admin(message.from_user.id)
+    is_moderator = await db.is_moderator(message.from_user.id)
     
     # Базовая справка для всех пользователей
     help_text = (
@@ -48,7 +50,7 @@ async def help_command(message: Message):
     # Дополнительные функции для админов/модераторов
     if is_admin:
         help_text += (
-            "🔧 **Функции модерации/администрирования:**\n"
+            "🔧 **Функции администрирования:**\n"
             "• 👑 Админ-панель - Управление системой\n"
             "• 📝 Заявки на модерации - Обработка заявок\n"
             "• ➕ Добавить олимпиаду - Создание новых олимпиад\n"
@@ -58,6 +60,12 @@ async def help_command(message: Message):
             "• 📊 Экспорт отчетов - Генерация Excel-отчетов\n"
             "• 🔄 Изменение статусов заявок - Одобрение/отклонение\n"
             "• 💬 Управление сообщениями - Комментарии к заявкам\n\n"
+        )
+    elif is_moderator:
+        help_text += (
+            "🔧 **Функции модерации:**\n"
+            "• 👑 Админ-панель - Управление системой\n"
+            "• 📝 Заявки на модерации - Обработка заявок\n\n"
         )
     
     help_text += (
