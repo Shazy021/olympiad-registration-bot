@@ -42,7 +42,7 @@ async def process_last_name(message: Message, state: FSMContext):
     await delete_lst_msgs(message)
 
     await state.update_data(last_name=message.text)
-    await message.answer("Введите ваше отчество (если есть):")
+    await message.answer("Введите ваше отчество (или прочерк \"-\" при отсутствии):")
     await state.set_state(RegistrationStates.middle_name)
 
 @router.message(RegistrationStates.middle_name, F.text)
