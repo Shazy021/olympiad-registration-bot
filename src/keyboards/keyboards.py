@@ -1,5 +1,5 @@
-from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton, ReplyKeyboardBuilder
+
 
 def confirm_keyboard():
     builder = InlineKeyboardBuilder()
@@ -8,11 +8,13 @@ def confirm_keyboard():
     builder.adjust(1)
     return builder.as_markup()
 
+
 def confirm_olimp_keyboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Подать заявление", callback_data="application_confirm")
     builder.adjust(1)
     return builder.as_markup()
+
 
 def role_keyboard():
     builder = InlineKeyboardBuilder()
@@ -22,6 +24,7 @@ def role_keyboard():
     builder.adjust(1)
     return builder.as_markup()
 
+
 def categories_keyboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="🎓 Школьник", callback_data="category_1")
@@ -30,6 +33,7 @@ def categories_keyboard():
     builder.button(text="👨‍🏫 Преподаватель", callback_data="category_4")
     builder.adjust(2, 2)
     return builder.as_markup()
+
 
 def main_menu_keyboard(is_admin=False):
     builder = ReplyKeyboardBuilder()
@@ -45,6 +49,7 @@ def main_menu_keyboard(is_admin=False):
         builder.adjust(1, 2, 2)
     return builder.as_markup(resize_keyboard=True)
 
+
 def settings_keyboard():
     builder = ReplyKeyboardBuilder()
     builder.button(text="✏️ Изменить профиль")
@@ -54,12 +59,14 @@ def settings_keyboard():
     builder.adjust(2, 2)
     return builder.as_markup(resize_keyboard=True)
 
+
 def confirm_delete_keyboard_del_acc():
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Да, удалить", callback_data="delete_yes")
     builder.button(text="❌ Нет, отменить", callback_data="delete_no")
     builder.adjust(2)
     return builder.as_markup()
+
 
 def admin_main_keyboard():
     builder = ReplyKeyboardBuilder()
@@ -70,6 +77,7 @@ def admin_main_keyboard():
     builder.adjust(2, 2, 1)
     return builder.as_markup(resize_keyboard=True)
 
+
 def moderator_main_keyboard():
     builder = ReplyKeyboardBuilder()
     builder.button(text="📝 Заявки на модерации")
@@ -77,40 +85,39 @@ def moderator_main_keyboard():
     builder.adjust(1, 1)
     return builder.as_markup(resize_keyboard=True)
 
+
 def subjects_keyboard(subjects):
     builder = InlineKeyboardBuilder()
     for subject in subjects:
-        builder.button(
-            text=subject['title'],
-            callback_data=f"subject_{subject['subject_id']}"
-        )
+        builder.button(text=subject["title"], callback_data=f"subject_{subject['subject_id']}")
     builder.adjust(1)
     return builder.as_markup()
+
 
 def back_to_admin_menu_keyboard():
     builder = ReplyKeyboardBuilder()
     builder.button(text="👑 Админ-панель")
     return builder.as_markup(resize_keyboard=True)
 
+
 def olympiads_keyboard(olympiads):
     builder = InlineKeyboardBuilder()
     for olympiad in olympiads:
-        builder.button(
-            text=olympiad['title'],
-            callback_data=f"olympiad_{olympiad['olympiad_id']}"
-        )
+        builder.button(text=olympiad["title"], callback_data=f"olympiad_{olympiad['olympiad_id']}")
     builder.adjust(1)
     return builder.as_markup()
+
 
 def application_list_keyboard(applications):
     builder = InlineKeyboardBuilder()
     for app in applications:
         builder.button(
             text=f"Заявка #{app['application_id']} - {app['first_name']} {app['last_name']}",
-            callback_data=f"app_id_{app['application_id']}"
+            callback_data=f"app_id_{app['application_id']}",
         )
     builder.adjust(1)
     return builder.as_markup()
+
 
 def moder_application_action_keyboard(application_id):
     builder = InlineKeyboardBuilder()
@@ -120,6 +127,7 @@ def moder_application_action_keyboard(application_id):
     builder.adjust(2, 1)
     return builder.as_markup()
 
+
 def reports_menu_keyboard():
     builder = InlineKeyboardBuilder()
     builder.button(text="📊 Заявки по олимпиадам", callback_data="report_applications_by_olympiad")
@@ -128,42 +136,38 @@ def reports_menu_keyboard():
     builder.adjust(1)
     return builder.as_markup()
 
+
 def olympiads_list_keyboard(olympiads, page=0, per_page=5):
     """Клавиатура списка олимпиад с пагинацией"""
     builder = InlineKeyboardBuilder()
-    
+
     # Рассчитываем индексы для текущей страницы
     start_idx = page * per_page
     end_idx = min(start_idx + per_page, len(olympiads))
-    
+
     # Добавляем кнопки для олимпиад на текущей странице
     for olympiad in olympiads[start_idx:end_idx]:
         builder.button(
             text=f"{olympiad['title']} ({olympiad['start_date'].strftime('%d.%m.%Y')})",
-            callback_data=f"view_olympiad_{olympiad['olympiad_id']}"
+            callback_data=f"view_olympiad_{olympiad['olympiad_id']}",
         )
-    
+
     # Добавляем кнопки пагинации
     pagination_row = []
     if page > 0:
-        pagination_row.append(InlineKeyboardButton(
-            text="⬅️ Назад", 
-            callback_data=f"olympiads_page_{page-1}"
-        ))
-    
+        pagination_row.append(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"olympiads_page_{page-1}"))
+
     if end_idx < len(olympiads):
-        pagination_row.append(InlineKeyboardButton(
-            text="Вперед ➡️", 
-            callback_data=f"olympiads_page_{page+1}"
-        ))
-    
+        pagination_row.append(InlineKeyboardButton(text="Вперед ➡️", callback_data=f"olympiads_page_{page+1}"))
+
     if pagination_row:
         builder.row(*pagination_row)
-    
+
     # Кнопка возврата
     builder.button(text="🔙 В админ-панель", callback_data="back_to_admin_panel")
     builder.adjust(1)
     return builder.as_markup()
+
 
 def olympiad_detail_keyboard(olympiad_id):
     """Клавиатура для детального просмотра олимпиады"""
@@ -176,19 +180,23 @@ def olympiad_detail_keyboard(olympiad_id):
     builder.adjust(2, 2, 1)
     return builder.as_markup()
 
+
 def olympiad_applications_keyboard(applications, olympiad_id):
     """Клавиатура заявок на конкретную олимпиаду"""
     builder = InlineKeyboardBuilder()
     for app in applications:
-        status_icon = "🟡" if app['status_name'] == 'Рассмотрение' else "🟢" if app['status_name'] == 'Одобрена' else "🔴"
+        status_icon = (
+            "🟡" if app["status_name"] == "Рассмотрение" else "🟢" if app["status_name"] == "Одобрена" else "🔴"
+        )
         builder.button(
             text=f"{status_icon} {app['first_name']} {app['last_name']} - {app['status_name']}",
-            callback_data=f"app_admin_app_check_{app['application_id']}"
+            callback_data=f"app_admin_app_check_{app['application_id']}",
         )
-    
+
     builder.button(text="🔙 К олимпиаде", callback_data=f"view_olympiad_{olympiad_id}")
     builder.adjust(1)
     return builder.as_markup()
+
 
 def application_action_keyboard(application_id):
     """Клавиатура действий с заявкой для администратора"""
@@ -200,21 +208,20 @@ def application_action_keyboard(application_id):
     builder.adjust(2, 1, 1)
     return builder.as_markup()
 
+
 def application_status_change_keyboard(application_id, current_status):
     """Клавиатура изменения статуса заявки"""
     builder = InlineKeyboardBuilder()
-    
+
     statuses = ["Рассмотрение", "Одобрена", "Отклонена"]
     for status in statuses:
         if status != current_status:
-            builder.button(
-                text=status.capitalize(),
-                callback_data=f"set_app_status_{application_id}_{status}"
-            )
-    
+            builder.button(text=status.capitalize(), callback_data=f"set_app_status_{application_id}_{status}")
+
     builder.button(text="🔙 Назад", callback_data=f"app_admin_app_check_{application_id}")
     builder.adjust(1)
     return builder.as_markup()
+
 
 def edit_olympiad_field_keyboard():
     """Клавиатура выбора поля для редактирования олимпиады"""
@@ -229,19 +236,15 @@ def edit_olympiad_field_keyboard():
     builder.adjust(2, 2, 2, 1)
     return builder.as_markup()
 
+
 def confirm_delete_keyboard(entity_type, entity_id):
     """Универсальная клавиатура подтверждения удаления"""
     builder = InlineKeyboardBuilder()
-    builder.button(
-        text="✅ Да, удалить", 
-        callback_data=f"confirm_delete_{entity_type}_yes_{entity_id}"
-    )
-    builder.button(
-        text="❌ Нет, отменить", 
-        callback_data=f"confirm_delete_{entity_type}_no"
-    )
+    builder.button(text="✅ Да, удалить", callback_data=f"confirm_delete_{entity_type}_yes_{entity_id}")
+    builder.button(text="❌ Нет, отменить", callback_data=f"confirm_delete_{entity_type}_no")
     builder.adjust(2)
     return builder.as_markup()
+
 
 def edit_profile_field_keyboard():
     """Клавиатура выбора поля для редактирования профиля"""
@@ -254,20 +257,19 @@ def edit_profile_field_keyboard():
     builder.adjust(2, 2, 1)
     return builder.as_markup()
 
+
 def get_categories_keyboard(categories, is_edit=False):
     """Клавиатура выбора категории"""
     builder = InlineKeyboardBuilder()
     prefix = "edit_cat_" if is_edit else "cat_"
-    
+
     for category in categories:
-        builder.button(
-            text=category['category_name'],
-            callback_data=f"{prefix}{category['category_id']}"
-        )
-    
+        builder.button(text=category["category_name"], callback_data=f"{prefix}{category['category_id']}")
+
     builder.button(text="❌ Отменить", callback_data="cancel_edit_profile")
     builder.adjust(1)
     return builder.as_markup()
+
 
 def skip_comment_keyboard():
     """Клавиатура для пропуска комментария"""
@@ -275,16 +277,15 @@ def skip_comment_keyboard():
     builder.button(text="⏩ Пропустить", callback_data="skip_comment")
     return builder.as_markup()
 
+
 def my_applications_keyboard(applications):
     """Клавиатура списка заявок пользователя"""
     builder = InlineKeyboardBuilder()
     for app in applications:
-        builder.button(
-            text=app['text'],
-            callback_data=f"view_my_app_{app['id']}"
-        )
+        builder.button(text=app["text"], callback_data=f"view_my_app_{app['id']}")
     builder.adjust(1)
     return builder.as_markup()
+
 
 def back_to_my_applications_keyboard():
     """Клавиатура для возврата к списку заявок"""
